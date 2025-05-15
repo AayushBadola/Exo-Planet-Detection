@@ -185,40 +185,32 @@ The pipeline executes the following major steps sequentially:
 
 ```mermaid
 graph TD
-    A[Start: Run main.py]
-    B{Load Configuration Hydra}
-    C[Setup Logging]
-    D[Load Raw Data]
-    E[Preprocess Data]
-    F[Split Data Train Test]
-    G[Train Model]
-    H[Save Model and Artifacts]
-    I[Evaluate Model]
-    J[Save Metrics and Plots]
-    K[Feature Importance Analysis]
-    L[Prediction Demo Optional]
-    M[End Pipeline Complete]
+    A[Start] --> B{Config}
+    B --> C[Setup]
+    C Mermaid diagram, then the problem lies within your larger `README.md`.
 
-    A --> B
-    B --> C
-    C --> D
-    D --> E
-    E --> F
-    F --> G
-    G --> H
-    H --> I
-    I --> J
-    J --> K
-    K --> L
-    L --> M
+1.  **Restore your full ` --> D[Load]
+    D --> E[Preproc]
+    E --> F[Split]
+    FREADME.md` content** from the backup.
+2.  **Systematically comment out or remove large sections** of your `README.md` *around* the problematic "2.3 Workflow Overview" section.
+    *    --> G[Train]
+    G --> H[SaveModel]
+    H --> I[Eval]
+    I --> J[SaveResults]
+    J --> K[FeatImport]
+    K --> L[Demo]
+    LFor example, comment out everything *before* section 2.3. Does the diagram render?
+    *   Then --> M[End]
 
-    subgraph "Data Preparation Stage"
+    subgraph Prep
         D
         E
         F
     end
 
-    subgraph "Modeling and Evaluation Stage"
+    subgraph, comment out everything *after* section 2.3. Does it render?
+    *   If it renders ModelEval
         G
         H
         I
