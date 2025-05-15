@@ -135,8 +135,8 @@ The primary objective is to develop an end-to-end, reproducible machine learning
 ### 1.2 Dataset Overview
 
 *   **Dataset Name:** Kepler Objects of Interest (KOI) Cumulative Table
-*   **Source:** [NASA Exoplanet Archive](https://exoplanetarchive.ipac.caltech.edu/docs/data.html) (Initially mentioned as Kaggle, please confirm and update if directly from NASA or a specific Kaggle version).
-    *   *If from Kaggle, add link:* [Link to Kaggle Dataset (if applicable)](#)
+*   **Source:** [NASA Exoplanet Archive](https://www.kaggle.com/datasets/nasa/kepler-exoplanet-search-results) 
+   
 *   **Description:** This table contains photometric time series data features and derived physical parameters for thousands of KOIs observed by the Kepler mission. The data includes features like orbital period, transit duration, transit depth, planetary radius, stellar parameters, and various false positive flags.
 *   **Target Variable:** `koi_disposition` (e.g., CONFIRMED, CANDIDATE, FALSE POSITIVE).
 
