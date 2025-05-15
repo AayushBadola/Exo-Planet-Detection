@@ -244,6 +244,12 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+### 3.5 Running the Pipeline
+
+```bash
+python main.py
+```
+
 ### 3.5 Data Acquisition
 
 1.  Download the Kepler Objects of Interest (KOI) Cumulative Table (CSV format) from the [NASA Exoplanet Archive](https://exoplanetarchive.ipac.caltech.edu/cgi-bin/TblView/nph-tblView?app=ExoTbls&config=cumulative) or your specified source.
