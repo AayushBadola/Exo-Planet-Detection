@@ -1,0 +1,9 @@
+# This file defines the 'model' group, selected by 'random_forest' in main config
+name: "RandomForestClassifier"
+params:
+  n_estimators: 100
+  n_jobs: -1
+  max_depth: 20
+  min_samples_split: 5
+  min_samples_leaf: 2
+  class_weight: "balanced"

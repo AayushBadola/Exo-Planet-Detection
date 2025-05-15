@@ -1,0 +1,2 @@
+# This file defines the 'data_paths' group, selected by 'default' in main config
+raw_data_filename: "cumulative.csv"
