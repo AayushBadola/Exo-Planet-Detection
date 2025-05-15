@@ -226,9 +226,46 @@ The pipeline executes the following major steps sequentially:
 
 ```mermaid
 graph TD
-    Alpha --> Bravo
-    Bravo --> Charlie
-```
+    NodeA[Start Run main.py]
+    NodeB{Load Configuration Hydra}
+    NodeC[Setup Logging and MLflow]
+    NodeD[Load Raw Data]
+    NodeE[Preprocess Data]
+    NodeF[Split Data Train Test]
+    NodeG[Train Model]
+    NodeH[Log Model and Artifacts MLflow]
+    NodeI[Evaluate Model]
+    NodeJ[Log Metrics and Plots MLflow]
+    NodeK[Feature Importance Analysis]
+    NodeL[Prediction Demo Optional]
+    NodeM[End Pipeline Complete]
+
+    NodeA --> NodeB
+    NodeB --> NodeC
+    NodeC --> NodeD
+    NodeD --> NodeE
+    NodeE --> NodeF
+    NodeF --> NodeG
+    NodeG --> NodeH
+    NodeH --> NodeI
+    NodeI --> NodeJ
+    NodeJ --> NodeK
+    NodeK --> NodeL
+    NodeL --> NodeM
+
+    subgraph "Data Preparation Stage"
+        NodeD
+        NodeE
+        NodeF
+    end
+
+    subgraph "Modeling and Tracking Stage"
+        NodeG
+        NodeH
+        NodeI
+        NodeJ
+        NodeK
+    end
 
 ---
 
