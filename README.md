@@ -81,6 +81,7 @@
 16. [Contact Author](#contact-author)
 
 ---
+**Note :-** After running the pipeline if you want to run it again, make sure that you delete `reports`, `outputs`, `models`, `logs` and then run the pipeline
 
 ## 1. Introduction
 
@@ -254,7 +255,7 @@ python main.py
 
 1.  Download the Kepler Objects of Interest (KOI) Cumulative Table (CSV format) from the [NASA Exoplanet Archive](https://exoplanetarchive.ipac.caltech.edu/cgi-bin/TblView/nph-tblView?app=ExoTbls&config=cumulative) or your specified source.
 2.  Place the file as `cumulative.csv` into the `data/` directory at the project root.
-
+  **Note :- ** While Cloning the repo you will automatically download the data set file.
 ---
 
 ## 4. Configuration Management with Hydra
