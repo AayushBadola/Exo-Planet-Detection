@@ -4,34 +4,27 @@ defaults:
   - model: random_forest
   - _self_
 
-# General project settings
 project_name: "ExoplanetDetectionKepler"
-random_state: 42 # Global random state for reproducibility
+random_state: 42
 test_size: 0.2
 
-# MLflow settings
 mlflow_experiment_name: "Exoplanet Detection Pipeline"
-mlflow_tracking_uri: "sqlite:///mlflow.db" # Or a remote tracking server URI
+mlflow_tracking_uri: "sqlite:///mlflow.db"
 
-# Base directory (will be set by Hydra's utils.get_original_cwd())
-base_dir: ??? # This will be dynamically set
+base_dir: ???
 
-# Directories (relative to base_dir)
 data_dir_rel: "data"
 model_dir_rel: "models"
 reports_dir_rel: "reports"
 log_file_rel: "logs/pipeline.log"
 
-
-# Prediction demo settings
 prediction_sample_size: 5
 
 tuning:
   cv_folds: 5
-  cv_n_jobs: -1 # Parallelize CV if possible
-  n_trials: 50 # Number of Optuna trials
-  # timeout_seconds: 3600 # Optional: 1 hour
-  direction: "maximize" # For ROC AUC
+  cv_n_jobs: -1
+  n_trials: 50
+  direction: "maximize"
   metric_to_optimize: "cv_roc_auc_mean"
 
 data_dir: ???
@@ -42,4 +35,4 @@ model_path: ???
 scaler_path: ???
 imputer_path: ???
 training_columns_path: ???
-poly_features_path: null 
+poly_features_path: null

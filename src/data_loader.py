@@ -34,14 +34,5 @@ def load_data(file_path: str) -> pd.DataFrame | None:
         return None
 
 if __name__ == '__main__':
-    # This is for basic testing, not part of the main pipeline run
-    # You'd need a config or hardcoded path here for standalone testing
-    # For example:
-    # cfg_test_path = "../../data/cumulative.csv" # Adjust path if running standalone
-    # logging.basicConfig(level=logging.INFO)
-    # data = load_data(cfg_test_path)
-    # if data is not None:
-    #     logger.info("First 5 rows of the loaded data:")
-    #     logger.info(f"\n{data.head()}")
-    #     logger.info(f"\nShape of the data: {data.shape}")
+
     pass

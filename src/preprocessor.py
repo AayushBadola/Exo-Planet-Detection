@@ -11,36 +11,16 @@ import os
 logger = logging.getLogger(__name__)
 
 def clean_column_names(df: pd.DataFrame) -> pd.DataFrame:
-    """Removes leading/trailing spaces from column names."""
     df.columns = df.columns.str.strip()
     return df
 
 def engineer_features(df: pd.DataFrame, cfg: DictConfig) -> pd.DataFrame:
-    """
-    Placeholder for more advanced feature engineering.
-    Example: Create a simple ratio feature.
-    """
     df_eng = df.copy()
-    # Example: if 'koi_duration' and 'koi_period' exist
     if 'koi_duration' in df_eng.columns and 'koi_period' in df_eng.columns and df_eng['koi_period'].gt(0).all():
-        # Ensure period is not zero to avoid division by zero
-        # And that the columns are numeric and don't have too many NaNs for this to be useful.
-        # This is a very simplistic example.
-        # df_eng['koi_duration_to_period_ratio'] = df_eng['koi_duration'] / df_eng['koi_period']
-        # logger.info("Engineered 'koi_duration_to_period_ratio' feature.")
-        pass # Keep it simple for now, can be expanded
-
-    # Apply PolynomialFeatures if configured
-    # This should be done ONLY on numerical features and ideally AFTER imputation
-    # For simplicity in this example, it's a placeholder here.
-    # A proper implementation would apply it to specific columns.
+        pass
     return df_eng
 
 def preprocess_data(df: pd.DataFrame, cfg: DictConfig, save_artifacts: bool = True):
-    """
-    Preprocesses the raw exoplanet data.
-    Returns X_processed, y_processed, and a dictionary of fitted transformers.
-    """
     if df is None:
         logger.error("Input DataFrame is None. Cannot preprocess.")
         return None, None, {}
@@ -49,7 +29,6 @@ def preprocess_data(df: pd.DataFrame, cfg: DictConfig, save_artifacts: bool = Tr
     df_processed = df.copy()
     df_processed = clean_column_names(df_processed)
 
-    # --- Target Variable Encoding ---
     if cfg.preprocessing.target_column not in df_processed.columns:
         logger.error(f"Target column '{cfg.preprocessing.target_column}' not found.")
         return None, None, {}
@@ -65,11 +44,8 @@ def preprocess_data(df: pd.DataFrame, cfg: DictConfig, save_artifacts: bool = Tr
     y = df_processed["target"]
     X = df_processed.drop(columns=["target", cfg.preprocessing.target_column], errors='ignore')
 
-    # --- Feature Dropping ---
-    # Combine config features_to_drop with target column if it was still in X by mistake
     features_to_drop_from_cfg = list(cfg.preprocessing.features_to_drop)
     
-    # Remove target column explicitly from the drop list if it's there, as it's handled separately
     if cfg.preprocessing.target_column in features_to_drop_from_cfg:
         features_to_drop_from_cfg.remove(cfg.preprocessing.target_column)
         
@@ -77,21 +53,18 @@ def preprocess_data(df: pd.DataFrame, cfg: DictConfig, save_artifacts: bool = Tr
     X = X.drop(columns=features_to_drop_existing, errors='ignore')
     logger.info(f"Dropped columns (from config): {features_to_drop_existing}")
 
-    # --- Simple Feature Engineering (Example) ---
     X = engineer_features(X, cfg)
 
-    # --- Identify Feature Types ---
     numerical_features = X.select_dtypes(include=np.number).columns.tolist()
     categorical_features = X.select_dtypes(include='object').columns.tolist()
 
     if categorical_features:
         logger.warning(f"Found categorical features: {categorical_features}. These will be dropped as per current strategy.")
         X = X.drop(columns=categorical_features, errors='ignore')
-        numerical_features = [col for col in numerical_features if col in X.columns] # Re-evaluate numerical
+        numerical_features = [col for col in numerical_features if col in X.columns]
 
-    transformers = {} # To store fitted transformers
+    transformers = {}
 
-    # --- Handle All-NaN Columns ---
     if numerical_features:
         all_nan_cols = [col for col in numerical_features if X[col].isnull().all()]
         if all_nan_cols:
@@ -99,52 +72,42 @@ def preprocess_data(df: pd.DataFrame, cfg: DictConfig, save_artifacts: bool = Tr
             X = X.drop(columns=all_nan_cols, errors='ignore')
             numerical_features = [col for col in numerical_features if col not in all_nan_cols]
     
-    if not numerical_features: # If all numerical columns were dropped or none existed
+    if not numerical_features:
         logger.error("No numerical features remaining after dropping all-NaN columns or initial selection. Cannot proceed.")
         return None, None, {}
 
-
-    # --- Imputation ---
     imputer = SimpleImputer(strategy="median")
-    # Impute only if there are NaNs, but fit anyway for consistency if save_artifacts is True
     if X[numerical_features].isnull().sum().sum() > 0:
         logger.info(f"Imputing {X[numerical_features].isnull().sum().sum()} missing values in numerical features using median.")
         X_imputed_data = imputer.fit_transform(X[numerical_features])
     else:
         logger.info("No missing values to impute in numerical features. Fitting imputer for consistency.")
-        # Fit imputer even if no NaNs for saving/loading consistency
-        X_imputed_data = imputer.fit_transform(X[numerical_features]) # or just .fit() then .transform()
+        X_imputed_data = imputer.fit_transform(X[numerical_features])
 
     X_imputed_df = pd.DataFrame(X_imputed_data, columns=numerical_features, index=X.index)
     
-    # Preserve non-numerical columns if any were kept (current strategy drops categoricals)
     X_non_numeric = X.select_dtypes(exclude=np.number)
     X = pd.concat([X_non_numeric, X_imputed_df], axis=1)
-    X = X[X_non_numeric.columns.tolist() + numerical_features] # Maintain original-like order for num features
+    X = X[X_non_numeric.columns.tolist() + numerical_features]
 
     transformers['imputer'] = imputer
     if save_artifacts:
         joblib.dump(imputer, cfg.imputer_path)
         logger.info(f"Imputer saved to {cfg.imputer_path}")
 
-    # --- Polynomial Features (Example - applied after imputation, before scaling) ---
-    # This is a very basic example; a production system would need more care (column selection, etc.)
     if cfg.preprocessing.get('apply_polynomial_features', False):
         logger.info(f"Applying PolynomialFeatures with degree {cfg.preprocessing.polynomial_degree} to numerical features.")
         poly = PolynomialFeatures(degree=cfg.preprocessing.polynomial_degree, include_bias=False, interaction_only=False)
         
-        # Apply to numerical features that are not flags (e.g., koi_fpflag_*)
-        # This selection logic is heuristic and would need refinement
         poly_target_cols = [
             col for col in numerical_features 
-            if not col.startswith('koi_fpflag_') and not col.startswith('koi_fittype') # Example exclusion
+            if not col.startswith('koi_fpflag_') and not col.startswith('koi_fittype')
         ]
         if poly_target_cols:
             X_poly_data = poly.fit_transform(X[poly_target_cols])
             poly_feature_names = poly.get_feature_names_out(poly_target_cols)
             X_poly_df = pd.DataFrame(X_poly_data, columns=poly_feature_names, index=X.index)
 
-            # Drop original columns that were transformed, and concatenate new poly features
             X = X.drop(columns=poly_target_cols, errors='ignore')
             X = pd.concat([X, X_poly_df], axis=1)
             
@@ -153,39 +116,30 @@ def preprocess_data(df: pd.DataFrame, cfg: DictConfig, save_artifacts: bool = Tr
                 joblib.dump(poly, cfg.poly_features_path)
                 logger.info(f"PolynomialFeatures transformer saved to {cfg.poly_features_path}")
             
-            # Update numerical_features list if new features are added by PolynomialFeatures
-            # For simplicity, we'll re-select all numerical columns for scaling.
             numerical_features = X.select_dtypes(include=np.number).columns.tolist()
         else:
             logger.warning("No suitable columns found for PolynomialFeatures, or list was empty. Skipping.")
 
-
-    # --- Scaling ---
-    # We scale ALL current numerical features in X.
     if not numerical_features or X[numerical_features].empty:
         logger.error("No numerical features available for scaling. Cannot proceed.")
-        return None, None, transformers # Return what we have so far
+        return None, None, transformers
 
     scaler = StandardScaler()
     X_scaled_data = scaler.fit_transform(X[numerical_features])
     X_scaled_df = pd.DataFrame(X_scaled_data, columns=numerical_features, index=X.index)
     
-    # Update X with scaled numerical features
-    X_non_numeric_after_poly = X.select_dtypes(exclude=np.number) # If any non-numeric cols remained/were created
+    X_non_numeric_after_poly = X.select_dtypes(exclude=np.number)
     X = pd.concat([X_non_numeric_after_poly, X_scaled_df], axis=1)
-    # Ensure column order if non-numeric columns exist
     if not X_non_numeric_after_poly.empty:
          X = X[X_non_numeric_after_poly.columns.tolist() + numerical_features]
     else:
          X = X[numerical_features]
-
 
     transformers['scaler'] = scaler
     if save_artifacts:
         joblib.dump(scaler, cfg.scaler_path)
         logger.info(f"Scaler saved to {cfg.scaler_path}")
 
-    # Save training columns
     if save_artifacts:
         joblib.dump(list(X.columns), cfg.training_columns_path)
         logger.info(f"Training columns list saved to {cfg.training_columns_path}")
@@ -193,19 +147,14 @@ def preprocess_data(df: pd.DataFrame, cfg: DictConfig, save_artifacts: bool = Tr
     logger.info(f"Preprocessing complete. Shape of X: {X.shape}, Shape of y: {y.shape}")
     return X, y, transformers
 
-
 def split_data(X: pd.DataFrame, y: pd.Series, cfg: DictConfig):
-    """Splits data into training and testing sets."""
     if X is None or y is None or X.empty or y.empty:
         logger.error("Cannot split data: X or y is None or empty.")
         return None, None, None, None
     
-    # Check for NaNs/Infs again before splitting, as a final safeguard
     if X.isnull().sum().sum() > 0:
         logger.warning(f"NaNs found in X ({X.isnull().sum().sum()} values) before splitting. This might indicate an issue in earlier preprocessing.")
-        # Simple fix: drop rows with any NaNs in X, and align y.
-        # This is aggressive but ensures split function doesn't fail.
-        # A better approach would be to ensure preprocessing handles all NaNs.
+    
         nan_rows_X = X.isnull().any(axis=1)
         if nan_rows_X.any():
             logger.warning(f"Dropping {nan_rows_X.sum()} rows from X and y due to NaNs in X before split.")
@@ -231,15 +180,14 @@ def split_data(X: pd.DataFrame, y: pd.Series, cfg: DictConfig):
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, 
             test_size=cfg.test_size, 
-            random_state=cfg.random_state, # Global random state
-            stratify=y if y.nunique() > 1 else None # Stratify if more than 1 class
+            random_state=cfg.random_state,
+            stratify=y if y.nunique() > 1 else None
         )
         logger.info(f"Data split into train and test sets. X_train: {X_train.shape}, X_test: {X_test.shape}")
         return X_train, X_test, y_train, y_test
     except ValueError as e:
         logger.error(f"Error during train_test_split (e.g., not enough samples for a class for stratify): {e}", exc_info=True)
         logger.info(f"y value counts: {y.value_counts()}")
-        # Try without stratify as a fallback if it's a stratify issue with small classes
         logger.warning("Attempting split without stratification due to previous error.")
         try:
             X_train, X_test, y_train, y_test = train_test_split(
@@ -251,47 +199,5 @@ def split_data(X: pd.DataFrame, y: pd.Series, cfg: DictConfig):
             logger.error(f"Fallback split also failed: {e_fallback}", exc_info=True)
             return None, None, None, None
 
-
 if __name__ == '__main__':
-    # Example Usage (requires dummy config or manual setup)
-    # from omegaconf import OmegaConf
-    # logging.basicConfig(level=logging.INFO)
-    # # Create a dummy config for testing
-    # dummy_cfg_dict = {
-    #     'preprocessing': {
-    #         'target_column': 'koi_disposition',
-    #         'positive_labels': ['CONFIRMED', 'CANDIDATE'],
-    #         'negative_label': 'FALSE POSITIVE',
-    #         'features_to_drop': ['rowid', 'kepid'],
-    #         'apply_polynomial_features': True,
-    #         'polynomial_degree': 2
-    #     },
-    #     'imputer_path': 'temp_imputer.joblib',
-    #     'scaler_path': 'temp_scaler.joblib',
-    #     'training_columns_path': 'temp_cols.joblib',
-    #     'poly_features_path': 'temp_poly.joblib', # Add if testing poly features
-    #     'test_size': 0.2,
-    #     'random_state': 42
-    # }
-    # dummy_cfg = OmegaConf.create(dummy_cfg_dict)
-    #
-    # # Create a dummy DataFrame
-    # data = {
-    #     'rowid': [1, 2, 3, 4, 5, 6], 'kepid': [101, 102, 103, 104, 105, 106],
-    #     'feature1': [10, 12, np.nan, 13, 17, 19],
-    #     'feature2': [0.5, 0.6, 0.7, np.nan, 0.1, 0.3],
-    #     'koi_disposition': ['CONFIRMED', 'FALSE POSITIVE', 'CANDIDATE', 'CONFIRMED', 'FALSE POSITIVE', 'FALSE POSITIVE'],
-    #     'object_col': ['a','b','c','d','e','f']
-    # }
-    # raw_data_test = pd.DataFrame(data)
-    #
-    # X_proc, y_proc, fitted_transformers = preprocess_data(raw_data_test, dummy_cfg, save_artifacts=False)
-    # if X_proc is not None:
-    #     logger.info(f"\nProcessed X head:\n{X_proc.head()}")
-    #     logger.info(f"\nProcessed y head:\n{y_proc.head()}")
-    #     logger.info(f"\nFitted transformers: {fitted_transformers.keys()}")
-    #
-    #     X_tr, X_te, y_tr, y_te = split_data(X_proc, y_proc, dummy_cfg)
-    #     if X_tr is not None:
-    #         logger.info(f"\nShapes: X_train={X_tr.shape}, y_train={y_tr.shape}")
     pass

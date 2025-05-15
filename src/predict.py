@@ -69,16 +69,11 @@ def preprocess_for_prediction(raw_sample_df: pd.DataFrame, artifacts: dict, cfg:
     logger.info("Starting preprocessing for prediction...")
     df_pred = raw_sample_df.copy()
     
-    # Import preprocessor locally to use clean_column_names
-    # This creates a slight circular dependency if preprocessor imports predict, avoid if possible.
-    # Better: move clean_column_names to a utility module or duplicate if small.
-    # For now, let's assume it's fine for this structure or clean_column_names is made independent.
+
     from .preprocessor import clean_column_names # Assuming same level src import
     df_pred = clean_column_names(df_pred)
 
-    # --- Feature Dropping (consistent with training) ---
-    # Note: target column is not expected in raw_sample_df for prediction.
-    # If it is, it should be removed before this function or handled.
+
     features_to_drop_from_cfg = list(cfg.preprocessing.features_to_drop)
     cols_to_drop_pred = [
         col for col in features_to_drop_from_cfg
@@ -91,9 +86,7 @@ def preprocess_for_prediction(raw_sample_df: pd.DataFrame, artifacts: dict, cfg:
     logger.debug(f"Prediction preproc: Dropped columns (from config): {cols_to_drop_pred}")
 
 
-    # --- Feature Engineering (consistent with training) ---
-    # from .preprocessor import engineer_features # Similar import consideration
-    # df_pred = engineer_features(df_pred, cfg) # Assuming engineer_features is stateless or uses no fitted params
+  
 
 
     # --- Identify Feature Types (on the current sample) ---
@@ -120,16 +113,7 @@ def preprocess_for_prediction(raw_sample_df: pd.DataFrame, artifacts: dict, cfg:
     # --- Imputation (using loaded imputer) ---
     imputer = artifacts.get('imputer')
     if imputer and numerical_features_pred: # Check if imputer exists and there are num_features
-        # Imputer was fit on a specific set of numerical columns during training.
-        # We need to apply it to the same columns if they exist in the current sample.
-        # SimpleImputer is typically fitted on all numerical columns passed to it.
-        # So, `imputer.feature_names_in_` (if available) or by assuming it was fit on all `numerical_features` from training.
-        
-        # The columns the imputer expects (based on training time `numerical_features` list)
-        # For SimpleImputer, it doesn't store names by default unless in a Pipeline.
-        # We assume it was fit on the set of numerical columns that existed *before* polynomial features and scaling.
-        # This is a bit fragile. A more robust way is to save the list of columns the imputer was fit on.
-        # For now, we apply to current `numerical_features_pred`.
+
         cols_to_impute_in_sample = [col for col in numerical_features_pred if col in df_pred.columns and df_pred[col].isnull().any()]
 
         if cols_to_impute_in_sample:
@@ -148,22 +132,14 @@ def preprocess_for_prediction(raw_sample_df: pd.DataFrame, artifacts: dict, cfg:
     # --- Polynomial Features (using loaded transformer) ---
     poly_transformer = artifacts.get('poly_features')
     if poly_transformer and cfg.preprocessing.get('apply_polynomial_features', False):
-        # Need to identify the same columns polynomial features were applied to during training
-        # This is also fragile without saving the exact list of columns.
-        # Assuming poly_target_cols selection logic from preprocessor.py can be replicated or was saved.
-        # For this example, let's assume `poly_transformer.feature_names_in_` if sklearn version is new enough,
-        # or we try to apply to the columns present in the sample that were likely transformed.
         
-        # Heuristic: apply to current numerical columns, excluding flags
         poly_candidate_cols_sample = [
             col for col in df_pred.select_dtypes(include=np.number).columns.tolist()
             if not col.startswith('koi_fpflag_') and not col.startswith('koi_fittype')
             and col in df_pred.columns # ensure col exists
         ]
 
-        # Further ensure these cols were likely what poly was fit on
-        # This needs `poly_transformer.feature_names_in_` or a saved list of columns
-        # For now, if poly_transformer.feature_names_in_ exists:
+      
         if hasattr(poly_transformer, 'feature_names_in_'):
             poly_input_cols_from_transformer = list(poly_transformer.feature_names_in_)
             actual_poly_cols_in_sample = [col for col in poly_candidate_cols_sample if col in poly_input_cols_from_transformer and col in df_pred.columns]
@@ -199,31 +175,12 @@ def preprocess_for_prediction(raw_sample_df: pd.DataFrame, artifacts: dict, cfg:
     scaler = artifacts.get('scaler')
     training_columns = artifacts.get('training_columns') # These are the columns the model expects (post-all-preprocessing)
 
-    # The scaler was fit on a specific set of numerical features (which became part of training_columns).
-    # We need to prepare a DataFrame for the scaler that has these exact columns.
+    
     
     temp_df_for_scaling = pd.DataFrame(index=df_pred.index)
     scaled_cols_present_in_sample = []
 
-    # Scaler expects columns it was fit on. These would be the numerical subset of `training_columns`
-    # *before* scaling itself was applied in the training `preprocess_data`.
-    # This is the trickiest part to get right without saving explicit column lists for each transformer step.
-    # For robust scaling: `training_columns` IS THE FINAL LIST OF COLUMNS THE MODEL EXPECTS.
-    # The scaler was fit on a subset of these (the numerical ones).
-    # So, `scaler.transform` should be applied to the numerical columns *that are part of `training_columns`*.
-    
-    # Let's assume scaler was fit on *all* columns that ended up in `training_columns` if they were numeric
-    # at the point of scaling during training. `training_columns` are post-scaling.
-    # A better way: scaler should be fit on pre-poly, pre-scaling numerical features, and that list saved.
-    # Simpler for now: reconstruct or apply to numerical columns within `training_columns`.
 
-    # Identify numerical columns from the `training_columns` list that scaler was likely fit on.
-    # This assumes `training_columns` reflects the state *after* scaling.
-    # The scaler was fit on the numeric columns that were *inputs* to it.
-    # We will ensure `df_pred` has all `training_columns`, fill missing, then scale those among them that are numeric.
-
-    # Ensure df_pred has all training_columns, filling missing ones with 0.
-    # This makes df_pred have the same structure as X was just before model.fit().
     for col in training_columns:
         if col not in df_pred.columns:
             logger.debug(f"Prediction preproc: Column '{col}' (expected by model/scaler) missing in sample. Filling with 0 before scaling.")
@@ -241,10 +198,7 @@ def preprocess_for_prediction(raw_sample_df: pd.DataFrame, artifacts: dict, cfg:
             df_pred[col] = df_pred[col].fillna(0)
 
 
-    # Now `df_pred` should have all `training_columns`. Apply scaler.
-    # The `scaler` was fit on the numerical features *before* they were scaled.
-    # So we need to apply `scaler.transform` to those columns in `df_pred` that correspond to scaler's input.
-    # `scaler.feature_names_in_` is ideal if available.
+   
     cols_to_scale_in_sample = []
     if hasattr(scaler, 'feature_names_in_'):
         cols_to_scale_in_sample = [col for col in scaler.feature_names_in_ if col in df_pred.columns]
@@ -284,14 +238,12 @@ def preprocess_for_prediction(raw_sample_df: pd.DataFrame, artifacts: dict, cfg:
     # Ensure correct order and drop any extra columns that might have crept in
     final_pred_df = final_pred_df[training_columns]
 
-    # Final NaN check on the data to be passed to the model
+    
     if final_pred_df.isnull().sum().sum() > 0:
         nan_sum = final_pred_df.isnull().sum().sum()
         logger.error(f"Prediction preproc: CRITICAL - NaNs detected in final preprocessed data for prediction ({nan_sum} values). Model will likely fail.")
         logger.error(f"Columns with NaNs:\n{final_pred_df.isnull().sum()[final_pred_df.isnull().sum() > 0]}")
-        # Consider filling with 0 as a last resort or raising an error
-        # final_pred_df = final_pred_df.fillna(0) 
-        # logger.warning("Filled final NaNs with 0 before prediction. This is a fallback.")
+     
         return None # Fail fast if NaNs remain
 
     logger.info("Prediction preprocessing complete.")
