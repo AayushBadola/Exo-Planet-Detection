@@ -226,18 +226,32 @@ The pipeline executes the following major steps sequentially:
 
 ```mermaid
 graph TD
-    A[Start: Run main.py] --> B{Load Configuration (Hydra)}
-    B --> C[Setup Logging & MLflow]
-    C --> D[Load Raw Data]
-    D --> E[Preprocess Data]
-    E --> F[Split Data (Train/Test)]
-    F --> G[Train Model]
-    G --> H[Log Model & Artifacts (MLflow)]
-    H --> I[Evaluate Model]
-    I --> J[Log Metrics & Plots (MLflow)]
-    J --> K[Feature Importance Analysis]
-    K --> L[Prediction Demo (Optional)]
-    L --> M[End: Pipeline Complete]
+    A[Start: Run main.py]
+    B{Load Configuration (Hydra)}
+    C[Setup Logging & MLflow]
+    D[Load Raw Data]
+    E[Preprocess Data]
+    F[Split Data (Train/Test)]
+    G[Train Model]
+    H[Log Model & Artifacts (MLflow)]
+    I[Evaluate Model]
+    J[Log Metrics & Plots (MLflow)]
+    K[Feature Importance Analysis]
+    L[Prediction Demo (Optional)]
+    M[End: Pipeline Complete]
+
+    A --> B
+    B --> C
+    C --> D
+    D --> E
+    E --> F
+    F --> G
+    G --> H
+    H --> I
+    I --> J
+    J --> K
+    K --> L
+    L --> M
 
     subgraph "Data Preparation"
         D
