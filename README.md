@@ -9,7 +9,7 @@
   <a href="https://www.python.org/downloads/">
     <img src="https://img.shields.io/badge/python-3.9%2B-blue.svg" alt="Python Version">
   </a>
-  <img src="https://img.shields.io/badge/status-under%20development-orange" alt="Project Status">
+  <img src="https://img.shields.io/badge/status-%20Running-orange" alt="Project Status">
   <img src="https://img.shields.io/badge/platform-windows%20%7C%20macos%20%7C%20linux-lightgrey" alt="Platform Agnostic">
   <a href="https://github.com/psf/black">
     <img src="https://img.shields.io/badge/code%20style-black-000000.svg" alt="Code style: black">
