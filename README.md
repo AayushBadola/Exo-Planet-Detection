@@ -451,7 +451,7 @@ This is currently a solo project. For future contributions, please:
 
 ## 14. License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file (you'll need to create this file with the MIT license text) for details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) 
 
 ---
 
